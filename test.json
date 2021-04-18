@@ -1,0 +1,25 @@
+{
+    "passphrase": "abcdefgh",
+    "time": "{{timenow}}",
+    "exchange": "{{exchange}}",
+    "ticker": "{{ticker}}",
+    "bar": {
+        "time": "{{time}}",
+        "open": "{{open}}",
+        "high": "{{high}}",
+        "low": "{{low}}",
+        "close": "{{close}}",
+        "volume": "{{volume}}",
+    },
+    "strategy": {
+        "postition_size": {{strategy.postition_size}},
+        "order_action": "{{strategy.order.action}}",
+        "order_contracts": {{strategy.order.contracts}},
+        "order_price": {{strategy.order.price}},
+        "order_id": "{{strategy.order.id}}",
+        "market_position": "{{strategy.market_position}}",
+        "market_position_size": {{strategy.market_position_size}},
+        "prev_market_postition": "{{strategy.prev_market_postition}}",
+        "prev_market_postition_size": {{strategy.prev_market_postition_size}}
+    }
+}

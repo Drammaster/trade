@@ -1,0 +1,4 @@
+WEBHOOK_PHRASE = "S=]ypG]:oLg2gvfFNr/a2x52j+r|J=O0p]_+6x|GgAm1h;2oegx@tUebD1q<"
+
+API_KEY = "jx6MHqiWXL2BWDNwFUKq8aoOoeh7kCCQz02ghdz2E4eOPstjxWguCXvSNwXdPDBB"
+API_SECRET = "c9siN2ffW3B0uua7C26fjLquGzYWTPNbfMZuRMOs4Ae8TtrrRCXoNYVrbuNNdyxG"
