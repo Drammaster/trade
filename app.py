@@ -1,50 +1,47 @@
 import json, config
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 from binance.client import Client
 from binance.enums import *
+
 app = Flask(__name__)
 
-client = Client(config.API_KEY, config.API_SECRET, tld="us")
+client = Client(config.API_KEY, config.API_SECRET, tld='us')
 
 def order(side, quantity, symbol, order_type=ORDER_TYPE_MARKET):
     try:
-        print("Sending order {order_type} - {side} {quantity} {symbol}")
+        print(f"sending order {order_type} - {side} {quantity} {symbol}")
         order = client.create_order(symbol=symbol, side=side, type=order_type, quantity=quantity)
-        print(order)
     except Exception as e:
-        print("An exception occured - {}".format(e))
+        print("an exception occured - {}".format(e))
         return False
 
-    return True
+    return order
 
 @app.route('/')
-def hello_world():
-    return 'Hello Csaba!'
+def welcome():
+    return render_template('index.html')
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
+    #print(request.data)
     data = json.loads(request.data)
-
-    if data['passhrase'] != config.WEBHOOK_PHRASE:
+    
+    if data['passphrase'] != config.WEBHOOK_PHRASE:
         return {
             "code": "error",
             "message": "Nice try, invalid passphrase"
         }
 
-    print(data["ticker"])
-    print(data["bar"])
-
     side = data['strategy']['order_action'].upper()
     quantity = data['strategy']['order_contracts']
-
     order_response = order(side, quantity, "DOGEUSD")
 
     if order_response:
-        return{
+        return {
             "code": "success",
-            "message": "order success"
+            "message": "order executed"
         }
-    else: 
+    else:
         print("order failed")
 
         return {
