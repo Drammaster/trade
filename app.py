@@ -35,9 +35,8 @@ def testorder(side, quantitytest, symbol, order_type=ORDER_TYPE_MARKET):
 # Home page
 @app.route('/')
 def welcome():
-    cake = client.get_avg_price(symbol='CAKEBUSD')
-    print(cake)
     info = client.get_account()['balances']
+
     return render_template('index.html', balances=info)
 
 # Live trade webhook
@@ -83,7 +82,6 @@ def webhook():
                 "message": "not enought funds"
             }
 
-
 # Test trade webhook
 @app.route('/test', methods=['POST'])
 def test():
@@ -112,3 +110,10 @@ def test():
             "code": "error",
             "message": "order failed"
         }
+
+@app.route('/set', methods=['POST'])
+def initial():
+    # Load data from post
+    data = json.loads(request.data)
+
+    return(data)
