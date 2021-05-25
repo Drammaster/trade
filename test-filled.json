@@ -1,25 +1,10 @@
 {
-	"passphrase": "abcdefgh",
+	"passphrase": "S=]ypG]:oLg2gvfFNr/a2x52j+r|J=O0p]_+6x|GgAm1h;2oegx@tUebD1q<",
 	"time": "2020-09-05T19:47:00Z",
 	"exchange": "BINCANCE",
-    "ticker": "DOGEUSDT",
-    "bar": {
-        "time": "2020-09-06T01:43:00Z",
-        "open": "0.002748",
-        "high": "0.0027486",
-        "low": "0.002748",
-        "close": "0.0027486",
-        "volume": "150177"
-    },
+    "ticker": "CAKEBUSD",
     "strategy": {
-        "postition_size": 10000,
         "order_action": "buy",
-        "order_contracts": 10000,
-        "order_price": 0.0027451,
-        "order_id": "doge door",
-        "market_position": "long",
-        "market_position_size": 10000,
-        "prev_market_postition": "flat",
-        "prev_market_postition_size": 0
+        "order_contracts": 10
     }
 }

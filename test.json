@@ -1,5 +1,5 @@
 {
-    "passphrase": "abcdefgh",
+    "passphrase": "S=]ypG]:oLg2gvfFNr/a2x52j+r|J=O0p]_+6x|GgAm1h;2oegx@tUebD1q<",
     "time": "{{timenow}}",
     "exchange": "{{exchange}}",
     "ticker": "{{ticker}}",
@@ -9,7 +9,7 @@
         "high": "{{high}}",
         "low": "{{low}}",
         "close": "{{close}}",
-        "volume": "{{volume}}",
+        "volume": "{{volume}}"
     },
     "strategy": {
         "postition_size": {{strategy.postition_size}},

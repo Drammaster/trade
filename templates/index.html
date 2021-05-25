@@ -5,5 +5,19 @@
 <body>
     <h1>Welcome</h1>
     <p>You have been miss lead</p>
+    <table>
+        {% for balance in balances %}
+            {% if balance['free'] != "0.00000000" %}
+                {% if balance['free'] != "0.00" %}
+                    <tr>
+                        <td>{{ balance['asset']}}</td>
+                    </tr>
+                    <tr>
+                        <td>{{ balance['free']}}</td>
+                    </tr>
+                {% endif %}
+            {% endif %}
+        {% endfor %}
+    </table>
 </body>
 </html>
