@@ -8,7 +8,49 @@ from binance.enums import *
 
 app = Flask(__name__)
 
+trading_bots = [
+    {
+        'name': "Cake Bot",
+        'exchange_pair': "CAKEBUSD",
+        'hold': 23,
+        'holds': True
+    },
+    {
+        'name': "Bitcoin Bot",
+        'exchange_pair': "BTCBUSD",
+        'hold': 77,
+        'holds': True
+    }
+]
+
 client = Client(config.API_KEY, config.API_SECRET)
+
+def add_bot(new_bot):
+
+    balances = client.get_account()['balances']
+
+    wallet_total = 0 #Wallet total in USD
+    for i in balances:
+        if i['free'] != "0.00000000":
+            if i['free'] != "0.00":
+                if i['asset'] != "BUSD":
+                    price = requests.get("https://api.binance.com/api/v3/ticker/price?symbol=" + i['asset'] + "BUSD").json()
+                    wallet_total += float(price['price']) * float(i['free'])
+                else:
+                    price = i['free']
+                    wallet_total += float(price)
+                print(i, price)
+
+    for x in trading_bots:
+        x['hold'] = wallet_total * (x['hold'] / 100) #Change bot holds to amount
+
+    wallet_total += new_bot['hold'] #Add new Bots hold
+
+    trading_bots.append(new_bot) #Add new Bot
+
+    for x in trading_bots:
+        x['hold'] = (x['hold'] / wallet_total) * 100   #Change bot holds to %
+
 
 # Live trading function
 def order(side, quantity, symbol, order_type=ORDER_TYPE_MARKET):
@@ -35,9 +77,8 @@ def testorder(side, quantitytest, symbol, order_type=ORDER_TYPE_MARKET):
 # Home page
 @app.route('/')
 def welcome():
-    info = client.get_account()['balances']
-
-    return render_template('index.html', balances=info)
+    balances = client.get_account()['balances']
+    return render_template('index.html', balances=balances, bots=trading_bots)
 
 # Live trade webhook
 @app.route('/webhook', methods=['POST'])
@@ -54,19 +95,29 @@ def webhook():
 
     side = data['strategy']['order_action'].upper()
 
+    
     # Buy case
     if side == "BUY":
+        allowence = 100
+        for i in trading_bots:
+            if i['exchange_pair'] != data['ticker'] and i['holds'] == True:
+                allowence -= i['hold']
         assets = client.get_asset_balance(asset="BUSD")
-        price = requests.get("https://api.binance.com/api/v3/ticker/price?symbol=CAKEBUSD").json()
-        quantity = float((float(assets['free']) / float(price['price']))*0.9995)
+        price = requests.get("https://api.binance.com/api/v3/ticker/price?symbol=" + data['ticker']).json()
+        quantity = float(((float(assets['free'])*(allowence/100)) / float(price['price']))*0.9995)
 
     # Sell case
     elif side == "SELL":
-        assets = client.get_asset_balance(asset="CAKE")
+        assets = client.get_asset_balance(asset='BTC')
         quantity = float(assets['free'])
 
     exchange = data['ticker']
-    order_response = order(side, round(quantity - 0.001, 3), exchange)
+    if data['ticker'] == 'CAKEBUSD':
+        order_response = order(side, round(quantity - 0.001, 3), exchange)
+    elif data['ticker'] == 'BTCBUSD':
+        order_response = order(side, round(quantity - 0.000001, 6), exchange)
+    elif data['ticker'] == 'BNBBUSD':
+        order_response = order(side, round(quantity - 0.0001, 4), exchange)
 
     if order_response:
         return {
@@ -116,4 +167,57 @@ def initial():
     # Load data from post
     data = json.loads(request.data)
 
-    return(data)
+    # Check for security phrase
+    if data['passphrase'] != config.WEBHOOK_PHRASE:
+        return {
+            "code": "error",
+            "message": "Nice try, invalid passphrase"
+        }
+    
+    side = data['strategy']['order_action'].upper()
+
+    
+    # Buy case
+    if side == "BUY":
+        allowence = 100
+        for i in trading_bots:
+            if i['exchange_pair'] != data['ticker'] and i['holds'] == True:
+                allowence -= i['hold']
+        assets = client.get_asset_balance(asset="BUSD")
+        price = requests.get("https://api.binance.com/api/v3/ticker/price?symbol=" + data['ticker']).json()
+        quantity = float(((float(assets['free'])*(allowence/100)) / float(price['price']))*0.9995)
+    
+    return({
+        'Status': client.get_account_status(),
+        'Snapshot': client.get_account_snapshot(),
+        'Fees': client.get_my_trades(symbol="CAKEBUSD")
+        })
+
+# Home page
+@app.route('/parallax')
+def parallax():
+    return render_template('parallax.html')
+
+
+@app.route('/createbot', methods=['POST'])
+def create_bot():
+    # Load data from post
+    data = json.loads(request.data)
+
+    name = data['name']
+    exchange_pair = data['exchange_pair']
+    hold = data['hold']
+
+    new_bot = {
+        'name': name,
+        'exchange_pair': exchange_pair,
+        'hold': hold,
+        'holds': False
+    }
+
+    add_bot(new_bot)
+
+    return({
+        'Message': "success",
+        'Bots': trading_bots
+    })
