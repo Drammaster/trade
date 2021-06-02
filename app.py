@@ -89,7 +89,7 @@ def welcome():
 
     for i in trading_bots:
         price = requests.get("https://api.binance.com/api/v3/ticker/price?symbol=" + i['exchange_pair']).json()
-        i['profit'] = i['initial'] - (price['price'] * client.get_asset_balance(asset='BTC'))
+        i['profit'] = i['initial'] - (float(price['price']) * float(client.get_asset_balance(asset=i['crypto'])['free']))
 
     return render_template('index.html', balances=balances, bots=trading_bots)
 
