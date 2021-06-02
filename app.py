@@ -12,14 +12,22 @@ trading_bots = [
     {
         'name': "Cake Bot",
         'exchange_pair': "CAKEBUSD",
+        'crypto': 'CAKE',
         'hold': 23,
-        'holds': True
+        'holds': False,
+        'initial': 200,
+        'profit': 0,
+        '7days': 0,
     },
     {
         'name': "Bitcoin Bot",
         'exchange_pair': "BTCBUSD",
+        'crypto': 'BTC',
         'hold': 77,
-        'holds': True
+        'holds': False,
+        'initial': 800,
+        'profit': 0,
+        '7days': 0,
     }
 ]
 
@@ -78,6 +86,11 @@ def testorder(side, quantitytest, symbol, order_type=ORDER_TYPE_MARKET):
 @app.route('/')
 def welcome():
     balances = client.get_account()['balances']
+
+    for i in trading_bots:
+        price = requests.get("https://api.binance.com/api/v3/ticker/price?symbol=" + i['exchange_pair']).json()
+        i['profit'] = i['initial'] - (price['price'] * client.get_asset_balance(asset='BTC'))
+
     return render_template('index.html', balances=balances, bots=trading_bots)
 
 # Live trade webhook
@@ -98,26 +111,42 @@ def webhook():
     
     # Buy case
     if side == "BUY":
-        allowence = 100
+        allowence = 0
         for i in trading_bots:
-            if i['exchange_pair'] != data['ticker'] and i['holds'] == True:
-                allowence -= i['hold']
-        assets = client.get_asset_balance(asset="BUSD")
-        price = requests.get("https://api.binance.com/api/v3/ticker/price?symbol=" + data['ticker']).json()
-        quantity = float(((float(assets['free'])*(allowence/100)) / float(price['price']))*0.9995)
+            if i['exchange_pair'] == data['ticker'] and i['holds'] == False:
+                allowence += i['hold']
+                i['holds'] = True
+            # elif i['exchange_pair'] == data['ticker']:
+            #     i['holds'] = True
+            #     print(i)
+            assets = client.get_asset_balance(asset="BUSD")
+            price = requests.get("https://api.binance.com/api/v3/ticker/price?symbol=" + data['ticker']).json()
+            quantity = float(((float(assets['free'])*(allowence/100)) / float(price['price']))*0.9995)
 
     # Sell case
     elif side == "SELL":
-        assets = client.get_asset_balance(asset='BTC')
+        for i in trading_bots:
+            if i['exchange_pair'] == data['ticker']:
+                i['holds'] = False
+        assets = client.get_asset_balance(asset=data['crypto'])
         quantity = float(assets['free'])
 
     exchange = data['ticker']
     if data['ticker'] == 'CAKEBUSD':
-        order_response = order(side, round(quantity - 0.001, 3), exchange)
+        if quantity > 0:
+            order_response = order(side, round(quantity - 0.001, 3), exchange)
+        else:
+            order_response = True
     elif data['ticker'] == 'BTCBUSD':
-        order_response = order(side, round(quantity - 0.000001, 6), exchange)
+        if quantity > 0:
+            order_response = order(side, round(quantity - 0.000001, 6), exchange)
+        else:
+            order_response = True
     elif data['ticker'] == 'BNBBUSD':
-        order_response = order(side, round(quantity - 0.0001, 4), exchange)
+        if quantity > 0:
+            order_response = order(side, round(quantity - 0.0001, 4), exchange)
+        else:
+            order_response = True
 
     if order_response:
         return {
