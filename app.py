@@ -13,7 +13,7 @@ trading_bots = [
         'name': "Cake Bot",
         'exchange_pair': "CAKEBUSD",
         'crypto': 'CAKE',
-        'hold': 23,
+        'hold': 100,
         'holds': True,
         'value': 200,
         'profit': 0,
@@ -24,7 +24,7 @@ trading_bots = [
         'name': "Bitcoin Bot",
         'exchange_pair': "BTCBUSD",
         'crypto': 'BTC',
-        'hold': 77,
+        'hold': 0,
         'holds': True,
         'value': 800,
         'profit': 0,
@@ -37,6 +37,7 @@ trading_bots = [
 client = Client(config.API_KEY, config.API_SECRET)
 
 
+# Adding bot
 def add_bot(new_bot):
 
     balances = client.get_account()['balances']
