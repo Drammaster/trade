@@ -130,12 +130,9 @@ def order():
     if side == "BUY":
         allowence = 0
         for i in trading_bots:
-            if i['exchange_pair'] == data['ticker'] and i['holds'] == False:
+            if i['exchange_pair'] == data['ticker']:
                 allowence += i['hold']
                 i['holds'] = True
-            # elif i['exchange_pair'] == data['ticker']:
-            #     i['holds'] = True
-            #     print(i)
             assets = client.get_asset_balance(asset="BUSD")
             price = requests.get("https://api.binance.com/api/v3/ticker/price?symbol=" + data['ticker']).json()
             quantity = float(((float(assets['free'])*(allowence/100)) / float(price['price']))*0.9995)
@@ -165,19 +162,34 @@ def order():
         else:
             order_response = True
 
-    if order_response:
-        return {
-            "code": "success",
-            "message": "order executed"
-        }
+    # if True != order_response:
+    #     return {
+    #         "code": "success",
+    #         "message": "order executed"
+    #     }
+    # else:
+    #     if float(client.get_asset_balance(asset="BUSD")['free']) > 10:
+    #         order()
+    #     else:
+    #         return {
+    #             "code": "error",
+    #             "message": "not enought funds"
+    #         }
+
+    if float(client.get_asset_balance(asset="BUSD")['free']) > 10 and side == "BUY":
+        order()
     else:
-        if float(client.get_asset_balance(asset="BUSD")['free']) > 10:
-            order()
+        if order_response:
+            return {
+                "code": "success",
+                "message": "order executed"
+            }
         else:
             return {
                 "code": "error",
                 "message": "not enought funds"
             }
+    
 
 
 @app.route('/ordertest', methods=['POST'])
