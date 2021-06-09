@@ -68,14 +68,14 @@ def add_bot(new_bot):
                     wallet_total += float(price)
                 print(i, price)
 
-    for x in trading_bots:
+    for x in trading_bots_binance:
         x['hold'] = wallet_total * (x['hold'] / 100) #Change bot holds to amount
 
     wallet_total += new_bot['hold'] #Add new Bots hold
 
-    trading_bots.append(new_bot) #Add new Bot
+    trading_bots_binance.append(new_bot) #Add new Bot
 
-    for x in trading_bots:
+    for x in trading_bots_binance:
         x['hold'] = (x['hold'] / wallet_total) * 100   #Change bot holds to %
 
 
@@ -148,12 +148,12 @@ def welcome():
 @app.route('/bots')
 def show_bots():
 
-    for i in trading_bots:
+    for i in trading_bots_binance:
         pair_price = requests.get("https://api.binance.com/api/v3/ticker/price?symbol=" + i['exchange_pair']).json()
         token_holding = client.get_asset_balance(asset=i['crypto'])
         i['value'] = round(float(pair_price['price']) * float(token_holding['free']), 2)
 
-    return render_template('bots.html', bots=trading_bots)
+    return render_template('bots.html', bots=trading_bots_binance)
 
 
 # Trade API
@@ -290,7 +290,7 @@ def ordertest():
     # Buy case
     if side == "BUY":
         allowence = 0
-        for i in trading_bots:
+        for i in trading_bots_binance:
             if i['exchange_pair'] == data['ticker'] and i['holds'] == False:
                 allowence += i['hold']
                 i['holds'] = True
@@ -301,7 +301,7 @@ def ordertest():
 
     # Sell case
     elif side == "SELL":
-        for i in trading_bots:
+        for i in trading_bots_binance:
             if i['exchange_pair'] == data['ticker']:
                 i['holds'] = False
         assets = client.get_asset_balance(asset=data['crypto'])
@@ -353,14 +353,14 @@ def manage_bot():
     # Check request
     if data['task'] == 'update':
         allowance = 100
-        for i in trading_bots:
+        for i in trading_bots_binance:
             if i['name'] == data['name']:
                 i['hold'] = data['hold']
                 allowance -= data['hold']
 
-        for i in trading_bots:
+        for i in trading_bots_binance:
             if i['name'] != data['name']:
-                i['hold'] = int(allowance / (len(trading_bots) - 1))
+                i['hold'] = int(allowance / (len(trading_bots_binance) - 1))
 
 
     elif data['task'] == 'create':
@@ -380,7 +380,7 @@ def manage_bot():
 
     return({
         'Message': "success",
-        'Bots': trading_bots
+        'Bots': trading_bots_binance
     })
 
 
