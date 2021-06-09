@@ -1,5 +1,10 @@
+import hmac
 import json, config
+import time
 import requests
+import urllib.parse
+import hashlib
+import base64
 from flask import Flask, request, render_template
 from binance.client import Client
 from binance.enums import *
@@ -8,7 +13,7 @@ from binance.enums import *
 app = Flask(__name__)
 
 
-trading_bots = [
+trading_bots_binance = [
     {
         'name': "Cake Bot",
         'exchange_pair': "CAKEBUSD",
@@ -19,22 +24,31 @@ trading_bots = [
         'profit': 0,
         '7days': 0,
         'order_type': ORDER_TYPE_MARKET
-    },
+    }    
+]
+
+trading_bots_kraken = [
     {
         'name': "Bitcoin Bot",
-        'exchange_pair': "BTCBUSD",
-        'crypto': 'BTC',
-        'hold': 0,
+        'exchange_pair': "MINAUSD",
+        'crypto': 'MINA',
+        'hold': 100,
         'holds': True,
         'value': 800,
         'profit': 0,
         '7days': 0,
-        'order_type': ORDER_TYPE_MARKET
+        'order_type': 'market'
     }
 ]
 
 
+#Binance
 client = Client(config.API_KEY, config.API_SECRET)
+
+#Kraken
+kraken_api_url = "https://api.kraken.com"
+kraken_api_key = config.KRAKEN_API_KEY
+kraken_api_sec = config.KRAKEN_API_SECRET
 
 
 # Adding bot
@@ -89,6 +103,39 @@ def test_order_function(side, quantity, symbol, order_type):
     return order
 
 
+#Get Kraken Signature
+def get_kraken_signature(urlpath, data, secret):
+
+    postdata = urllib.parse.urlencode(data)
+    encoded = (str(data['nonce']) + postdata).encode()
+    message = urlpath.encode() + hashlib.sha256(encoded).digest()
+
+    mac = hmac.new(base64.b64decode(secret), message, hashlib.sha512)
+    sigdigest = base64.b64encode(mac.digest())
+    return sigdigest.decode()
+
+
+# Attaches auth headers and returns results of a POST request
+def kraken_request(uri_path, data, kraken_api_key, kraken_api_sec):
+    headers = {}
+    headers['API-Key'] = kraken_api_key
+    # get_kraken_signature() as defined in the 'Authentication' section
+    headers['API-Sign'] = get_kraken_signature(uri_path, data, kraken_api_sec)             
+    req = requests.post((kraken_api_url + uri_path), headers=headers, data=data)
+    return req
+
+
+#Kraken API Balance
+@app.route('/kraken', methods=['POST'])
+def kraken_balance():
+    # Construct the request and print the result
+    resp = kraken_request('/0/private/Balance', {
+        "nonce": str(int(1000*time.time()))
+    }, kraken_api_key, kraken_api_sec)
+
+    return(resp.json()) 
+
+
 # Home page
 @app.route('/')
 def welcome():
@@ -97,6 +144,7 @@ def welcome():
     return render_template('index.html', balances=balances)
 
 
+# Bots Page
 @app.route('/bots')
 def show_bots():
 
@@ -108,13 +156,14 @@ def show_bots():
     return render_template('bots.html', bots=trading_bots)
 
 
-# Live trade webhook
+# Trade API
 @app.route('/order', methods=['POST'])
 def order():
     # Load data from post
     data = json.loads(request.data)
 
-    order_type = ORDER_TYPE_MARKET
+    order_type_binance = ORDER_TYPE_MARKET
+    order_type_kraken = "market"
     
     # Check for security phrase
     if data['passphrase'] != config.WEBHOOK_PHRASE:
@@ -125,72 +174,100 @@ def order():
 
     side = data['strategy']['order_action'].upper()
 
+    #Binance Trades
+    if data['exchange'].upper() == 'BINANCE':
+        # Buy case
+        if side == "BUY":
+            allowence = 0
+            for i in trading_bots_binance:
+                if i['exchange_pair'] == data['ticker']:
+                    allowence += i['hold']
+                    i['holds'] = True
+                assets = client.get_asset_balance(asset="BUSD")
+                price = requests.get("https://api.binance.com/api/v3/ticker/price?symbol=" + data['ticker']).json()
+                quantity = float(((float(assets['free'])*(allowence/100)) / float(price['price']))*0.9995)
+
+        # Sell case
+        elif side == "SELL":
+            for i in trading_bots_binance:
+                if i['exchange_pair'] == data['ticker']:
+                    i['holds'] = False
+            assets = client.get_asset_balance(asset=data['crypto'])
+            quantity = float(assets['free'])
+
+        exchange = data['ticker']
+        if data['ticker'] == 'CAKEBUSD':
+            if quantity > 0:
+                order_response = order_function(side, round(quantity - 0.001, 3), exchange, order_type_binance)
+            else:
+                order_response = True
+        elif data['ticker'] == 'BTCBUSD':
+            if quantity > 0:
+                order_response = order_function(side, round(quantity - 0.000001, 6), exchange, order_type_binance)
+            else:
+                order_response = True
+        elif data['ticker'] == 'BNBBUSD':
+            if quantity > 0:
+                order_response = order_function(side, round(quantity - 0.0001, 4), exchange, order_type_binance)
+            else:
+                order_response = True
+
+
+        if float(client.get_asset_balance(asset="BUSD")['free']) > 10 and side == "BUY":
+            order()
+        else:
+            if order_response:
+                return {
+                    "code": "success",
+                    "message": "order executed"
+                }
+            else:
+                return {
+                    "code": "error",
+                    "message": "not enought funds"
+                }
     
-    # Buy case
-    if side == "BUY":
-        allowence = 0
-        for i in trading_bots:
-            if i['exchange_pair'] == data['ticker']:
-                allowence += i['hold']
-                i['holds'] = True
-            assets = client.get_asset_balance(asset="BUSD")
-            price = requests.get("https://api.binance.com/api/v3/ticker/price?symbol=" + data['ticker']).json()
-            quantity = float(((float(assets['free'])*(allowence/100)) / float(price['price']))*0.9995)
+    #Kraken Trades
+    elif data['exchange'].upper() == 'KRAKEN':
 
-    # Sell case
-    elif side == "SELL":
-        for i in trading_bots:
-            if i['exchange_pair'] == data['ticker']:
-                i['holds'] = False
-        assets = client.get_asset_balance(asset=data['crypto'])
-        quantity = float(assets['free'])
+        # Buy case
+        if side == "BUY":
+            allowence = 0
+            for i in trading_bots_kraken:
+                if i['exchange_pair'] == data['ticker']:
+                    allowence += i['hold']
+                    i['holds'] = True
+                
+                esp = kraken_request('/0/private/Balance', {
+                    "nonce": str(int(1000*time.time()))
+                }, kraken_api_key, kraken_api_sec).json()
 
-    exchange = data['ticker']
-    if data['ticker'] == 'CAKEBUSD':
-        if quantity > 0:
-            order_response = order_function(side, round(quantity - 0.001, 3), exchange, order_type)
-        else:
-            order_response = True
-    elif data['ticker'] == 'BTCBUSD':
-        if quantity > 0:
-            order_response = order_function(side, round(quantity - 0.000001, 6), exchange, order_type)
-        else:
-            order_response = True
-    elif data['ticker'] == 'BNBBUSD':
-        if quantity > 0:
-            order_response = order_function(side, round(quantity - 0.0001, 4), exchange, order_type)
-        else:
-            order_response = True
+                assets = esp[data['ticker']]
+                price = requests.get('https://api.kraken.com/0/public/Ticker?pair=' + data['ticker']).json()
+                quantity = float(((float(assets)*(allowence/100)) / float(price[data['ticker']]['a'][0]))*0.9995)
 
-    # if True != order_response:
-    #     return {
-    #         "code": "success",
-    #         "message": "order executed"
-    #     }
-    # else:
-    #     if float(client.get_asset_balance(asset="BUSD")['free']) > 10:
-    #         order()
-    #     else:
-    #         return {
-    #             "code": "error",
-    #             "message": "not enought funds"
-    #         }
-
-    if float(client.get_asset_balance(asset="BUSD")['free']) > 10 and side == "BUY":
-        order()
-    else:
-        if order_response:
-            return {
-                "code": "success",
-                "message": "order executed"
-            }
-        else:
-            return {
-                "code": "error",
-                "message": "not enought funds"
-            }
-    
-
+        # Sell case
+        elif side == "SELL":
+            for i in trading_bots_kraken:
+                if i['exchange_pair'] == data['ticker']:
+                    i['holds'] = False
+            
+            esp = kraken_request('/0/private/Balance', {
+                "nonce": str(int(1000*time.time()))
+            }, kraken_api_key, kraken_api_sec).json()
+            assets = esp[data['ticker']]
+            quantity = float(assets)
+        
+        resp = kraken_request('/0/private/AddOrder', {
+            "nonce": str(int(1000*time.time())),
+            "ordertype": order_type_kraken,
+            "type": side.lower(),
+            "volume": quantity,
+            "pair": data['ticker']
+        }, kraken_api_key, kraken_api_sec)
+        
+        return(resp.json())
+        
 
 @app.route('/ordertest', methods=['POST'])
 def ordertest():
