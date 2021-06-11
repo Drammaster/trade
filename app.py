@@ -177,7 +177,47 @@ def order():
 
     #If Kraken trade
     if data['exchange'].upper() == 'KRAKEN':
-        pass
+        for i in trading_bots_binance:
+            if i['exchange_pair'] == data['coinMain'] + data['coinSecondary']:
+                order_type = i['order_type']
+
+        # Buy case
+        if side == "BUY":
+            allowence = 0
+            for i in trading_bots_kraken:
+                if i['exchange_pair'] == data['ticker']:
+                    allowence += i['hold']
+                    i['holds'] = True
+                
+                esp = kraken_request('/0/private/Balance', {
+                    "nonce": str(int(1000*time.time()))
+                }, kraken_api_key, kraken_api_sec).json()
+
+                assets = esp[data['ticker']]
+                price = requests.get('https://api.kraken.com/0/public/Ticker?pair=' + data['ticker']).json()
+                quantity = float(((float(assets)*(allowence/100)) / float(price[data['ticker']]['a'][0]))*0.9995)
+
+        # Sell case
+        elif side == "SELL":
+            for i in trading_bots_kraken:
+                if i['exchange_pair'] == data['ticker']:
+                    i['holds'] = False
+            
+            esp = kraken_request('/0/private/Balance', {
+                "nonce": str(int(1000*time.time()))
+            }, kraken_api_key, kraken_api_sec).json()
+            assets = esp[data['ticker']]
+            quantity = float(assets)
+        
+        resp = kraken_request('/0/private/AddOrder', {
+            "nonce": str(int(1000*time.time())),
+            "ordertype": order_type,
+            "type": side.lower(),
+            "volume": quantity,
+            "pair": data['coinMain'] + data['coinSecondary']
+        }, kraken_api_key, kraken_api_sec)
+        
+        return(resp.json())
 
     #If Binance trade
     elif data['exchange'].upper() == 'BINANCE':
@@ -221,7 +261,7 @@ def order():
 
 
         if float(client.get_asset_balance(asset=data['coinSecondary'])['free']) > 10 and side == "BUY":
-            testing()
+            order()
             return {
                     "code": "success",
                     "message": "order executed"
