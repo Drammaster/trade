@@ -1,10 +1,6 @@
-WEBHOOK_PHRASE = ""
+import os
 
-API_KEY = ""
-API_SECRET = ""
+WEBHOOK_PHRASE = os.environ.get('WEBHOOK_PHRASE')
 
-KRAKEN_API_KEY = ""
-KRAKEN_API_SECRET = ""
-
-KUCOIN_API_KEY = ""
-KUCOIN_API_SECRET = ""
+API_KEY = os.environ.get('API_KEY')
+API_SECRET = os.environ.get('API_SECRET')
